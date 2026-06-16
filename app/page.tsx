@@ -196,19 +196,16 @@ export default function Home() {
               <button
                 key={partKey}
                 onClick={() => setSelectedPart(partKey)}
-                className={`py-2 px-1 text-[9px] font-bold rounded-xl border transition-all ${
-                  selectedPart === partKey
-                    ? "bg-zinc-950 border-zinc-950 text-white shadow-md scale-95"
-                    : "bg-white border-zinc-200 hover:border-zinc-400 text-zinc-600"
-                }`}
+                className={`py-2 px-1 text-[9px] font-bold rounded-xl border transition-all ${selectedPart === partKey
+                  ? "bg-zinc-950 border-zinc-950 text-white shadow-md scale-95"
+                  : "bg-white border-zinc-200 hover:border-zinc-400 text-zinc-600"
+                  }`}
               >
                 {partKey === "jantung_paruparu" ? "ORGAN DADA" : partKey.toUpperCase()}
               </button>
             ))}
           </div>
-          <p className="text-center text-[10px] text-zinc-400 mt-4">
-            Studio Media Interaktif &copy; {new Date().getFullYear()}
-          </p>
+
         </div>
       </div>
 
