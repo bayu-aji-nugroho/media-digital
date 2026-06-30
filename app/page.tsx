@@ -121,11 +121,204 @@ const PARTS_DATA: Record<string, PartInfo> = {
   },
 };
 
+const QUIZ_RIDDLES = [
+  {
+    riddle: "Aku berdenyut terus di dalam dadamu untuk memompa darah segar ke seluruh tubuh. Siapakah aku?",
+    answer: "jantung",
+    options: ["jantung", "paru_paru", "mata"],
+    hint: "Pegang dada sebelah kirimu, rasakan detak jantungmu!",
+  },
+  {
+    riddle: "Aku membantumu bernapas, menghirup udara bersih (oksigen) dan membuang karbon dioksida. Siapakah aku?",
+    answer: "paru_paru",
+    options: ["paru_paru", "hidung", "mulut"],
+    hint: "Jumlahku ada sepasang (dua) di dalam rongga dada.",
+  },
+  {
+    riddle: "Aku adalah jendela tubuhmu yang bisa melihat warna-warni pelangi, gambar kartun, dan buku cerita. Siapakah aku?",
+    answer: "mata",
+    options: ["mata", "telinga", "hidung"],
+    hint: "Kedipkan aku untuk membersihkan permukaan bola mataku!",
+  },
+  {
+    riddle: "Aku membantumu mencium wangi bunga yang harum atau menyadari bau sampah yang menyengat. Siapakah aku?",
+    answer: "hidung",
+    options: ["hidung", "mulut", "telinga"],
+    hint: "Aku berada di tengah-tengah wajahmu dan memiliki dua lubang.",
+  },
+  {
+    riddle: "Aku membantumu mendengarkan musik merdu, penjelasan guru, dan nasihat orang tuamu. Siapakah aku?",
+    answer: "telinga",
+    options: ["telinga", "mata", "mulut"],
+    hint: "Aku terletak di sebelah kiri dan kanan kepalamu.",
+  },
+  {
+    riddle: "Aku adalah tempat gigi dan lidah berada, digunakan untuk berbicara sopan serta mengunyah makanan lezat. Siapakah aku?",
+    answer: "mulut",
+    options: ["mulut", "hidung", "telinga"],
+    hint: "Gunakan aku untuk tersenyum manis!",
+  },
+];
+
+const TRIVIA_FACTS = [
+  {
+    emoji: "💡❤️",
+    fact: "Jantungmu berdetak sekitar 100.000 kali dalam satu hari untuk mengedarkan darah segar ke seluruh tubuh!",
+  },
+  {
+    emoji: "💡🫁",
+    fact: "Paru-paru kananmu berukuran sedikit lebih besar daripada paru-paru kirimu untuk memberikan ruang bagi jantung!",
+  },
+  {
+    emoji: "💡👃",
+    fact: "Hidung manusia sangat luar biasa karena bisa mengenali dan mengingat hingga 50.000 aroma yang berbeda!",
+  },
+  {
+    emoji: "💡👁️",
+    fact: "Mata kita berkedip sekitar 15 hingga 20 kali setiap menit secara otomatis untuk menjaga mata tetap basah dan bersih!",
+  },
+  {
+    emoji: "💡👅",
+    fact: "Lidah memiliki ribuan sensor rasa kecil bernama papila yang membantumu membedakan rasa manis, asin, asam, dan pahit!",
+  },
+  {
+    emoji: "💡👂",
+    fact: "Telinga bagian dalam tidak hanya membantumu mendengar suara, tetapi juga menjaga keseimbangan tubuhmu agar tidak jatuh saat berdiri!",
+  },
+];
+
 export default function Home() {
+  const [showOpening, setShowOpening] = useState(true);
   const [selectedPart, setSelectedPart] = useState<string | null>(null);
   const activeData = selectedPart ? PARTS_DATA[selectedPart] : null;
 
   const [activeTab, setActiveTab] = useState<"info" | "game" | "care">("info");
+
+  // Welcome Panel Interactive States
+  const [visitedParts, setVisitedParts] = useState<string[]>([]);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [selectedQuizAnswer, setSelectedQuizAnswer] = useState<string | null>(null);
+  const [quizAnswered, setQuizAnswered] = useState<boolean | null>(null);
+  const [triviaIndex, setTriviaIndex] = useState(0);
+
+  const playEntrySound = () => {
+    if (typeof window === "undefined") return;
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!AudioContextClass) return;
+    try {
+      const audioCtx = new AudioContextClass();
+      const playTone = (freq: number, delay: number, dur: number) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+        gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + delay + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + dur);
+        osc.start(audioCtx.currentTime + delay);
+        osc.stop(audioCtx.currentTime + delay + dur + 0.05);
+      };
+      playTone(261.63, 0, 0.25); // C4
+      playTone(329.63, 0.08, 0.25); // E4
+      playTone(392.00, 0.16, 0.25); // G4
+      playTone(523.25, 0.24, 0.55); // C5
+    } catch (e) {
+      console.warn("Web Audio API chime blocked:", e);
+    }
+  };
+
+  // Load exploration progress
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("visited_organs");
+      if (stored) {
+        try {
+          setVisitedParts(JSON.parse(stored));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
+
+  // Track exploration progress
+  useEffect(() => {
+    if (selectedPart) {
+      setVisitedParts((prev) => {
+        if (!prev.includes(selectedPart)) {
+          const next = [...prev, selectedPart];
+          if (typeof window !== "undefined") {
+            localStorage.setItem("visited_organs", JSON.stringify(next));
+          }
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [selectedPart]);
+
+  const resetExplorationProgress = () => {
+    setVisitedParts([]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("visited_organs");
+    }
+  };
+
+  const playQuizSound = (isCorrect: boolean) => {
+    if (typeof window === "undefined") return;
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!AudioContextClass) return;
+    try {
+      const audioCtx = new AudioContextClass();
+      if (isCorrect) {
+        const playTone = (freq: number, delay: number, dur: number) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime + delay);
+          gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+          gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + dur);
+          osc.start(audioCtx.currentTime + delay);
+          osc.stop(audioCtx.currentTime + delay + dur + 0.05);
+        };
+        playTone(523.25, 0, 0.15); // C5
+        playTone(659.25, 0.08, 0.15); // E5
+        playTone(783.99, 0.16, 0.35); // G5
+      } else {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      }
+    } catch (e) {
+      console.warn("Web Audio API not supported or blocked by user gesture:", e);
+    }
+  };
+
+  const handleQuizAnswer = (choice: string) => {
+    setSelectedQuizAnswer(choice);
+    const isCorrect = choice === QUIZ_RIDDLES[quizIndex].answer;
+    setQuizAnswered(isCorrect);
+    playQuizSound(isCorrect);
+  };
+
+  const nextQuiz = () => {
+    setSelectedQuizAnswer(null);
+    setQuizAnswered(null);
+    setQuizIndex((prev) => (prev + 1) % QUIZ_RIDDLES.length);
+  };
 
   // Reset tab to info whenever a new part is selected
   useEffect(() => {
@@ -672,6 +865,84 @@ export default function Home() {
     }
   };
 
+  if (showOpening) {
+    return (
+      <div className="w-screen h-screen bg-gradient-to-br from-indigo-900 via-indigo-850 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden font-sans select-none animate-fadeIn">
+        {/* Floating background blobs/particles */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-3xl pointer-events-none animate-pulse"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full bg-indigo-500/10 blur-3xl pointer-events-none animate-pulse"></div>
+        
+        {/* Main Card */}
+        <div className="bg-white/95 backdrop-blur-xl border border-white/20 shadow-2xl rounded-3xl p-6 sm:p-8 max-w-lg w-full text-center space-y-6 sm:space-y-8 relative z-10 transition-all duration-300 hover:shadow-indigo-500/10 hover:shadow-3xl">
+          {/* Logo / Badge */}
+          <div className="flex flex-col items-center gap-3">
+            <span className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-4xl shadow-lg border-2 border-white/80 animate-bounce">
+              🎓
+            </span>
+            <div className="space-y-1">
+              <span className="px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black tracking-wider uppercase border border-indigo-200">
+                Media Pembelajaran Interaktif
+              </span>
+              <h1 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-tight mt-1 bg-gradient-to-r from-indigo-950 via-zinc-900 to-indigo-950 bg-clip-text text-transparent">
+                Media Pembelajaran Digital: Anatomi Organ Tubuh Manusia
+              </h1>
+            </div>
+          </div>
+
+          {/* Kelompok Info */}
+          <div className="p-4 sm:p-5 bg-zinc-50 border border-zinc-200/80 rounded-2xl space-y-3.5">
+            <div className="flex items-center justify-between border-b border-zinc-200 pb-2">
+              <span className="text-xs font-black text-zinc-500 tracking-wider uppercase">Kelompok 7</span>
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </div>
+            <div className="space-y-2 text-left">
+              {[
+                { name: "Maharani Putri Dewi Saraswati", id: "K7124138", avatar: "👩‍⚕️" },
+                { name: "Tri Kurnia Puji Lestari", id: "K7124154", avatar: "👩‍⚕️" },
+                { name: "‘Inayah Khairiyah Ghozali", id: "K7124160", avatar: "👩‍⚕️" },
+                { name: "Bayu Aji Nugroho", id: "K7124171", avatar: "👨‍⚕️" },
+              ].map((member, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 py-2 px-3 bg-white border border-zinc-100 hover:border-indigo-200 rounded-xl transition-all shadow-2xs hover:shadow-xs group cursor-default"
+                >
+                  <span className="text-lg bg-zinc-50 rounded-lg p-1 group-hover:scale-110 transition-transform">{member.avatar}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-zinc-800 truncate leading-none">
+                      {member.name}
+                    </p>
+                    <p className="text-[9px] font-black text-zinc-400 mt-1 uppercase tracking-wider">
+                      NIM: {member.id}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    ✨
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Button */}
+          <div className="space-y-3">
+            <button
+              onClick={() => {
+                setShowOpening(false);
+                playEntrySound();
+              }}
+              className="w-full py-3.5 px-6 bg-gradient-to-r from-blue-500 via-indigo-600 to-indigo-700 hover:from-blue-600 hover:to-indigo-800 text-white rounded-2xl text-xs sm:text-sm font-black tracking-wider uppercase shadow-md hover:shadow-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              Mulai Jelajah Anatomi ➔
+            </button>
+            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 max-w-xs mx-auto">
+              Direkomendasikan menggunakan speaker aktif untuk mendengarkan simulator suara organ tubuh.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-screen bg-gradient-to-br from-slate-50 via-zinc-50 to-blue-50 overflow-hidden font-sans">
       
@@ -694,7 +965,7 @@ export default function Home() {
               </span>
               <div>
                 <h1 className="text-sm sm:text-base font-extrabold text-zinc-950 tracking-tight leading-none">
-                  Media Edukasi SD
+                  Media Pembelajaran Digital
                 </h1>
                 <p className="text-[10px] text-zinc-500 font-bold mt-1">
                   Belajar Organ Tubuh Interaktif
@@ -704,22 +975,179 @@ export default function Home() {
 
             {/* Panel Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              <div className="py-2 text-center md:text-left">
-                <div className="inline-block p-4 rounded-full bg-blue-50/70 mb-4 animate-bounce">
-                  <span className="text-3xl">👋</span>
+              {/* Welcome Section */}
+              <div className="text-center md:text-left space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl animate-bounce">👋</span>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-extrabold text-zinc-900 tracking-tight leading-none">
+                      Halo Calon Dokter!
+                    </h2>
+                    <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 mt-1">
+                      Mari jelajahi organ tubuh manusia dengan cara yang seru.
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
-                  Halo Adik-Adik!
-                </h2>
-                <p className="text-zinc-600 mt-3 leading-relaxed text-xs sm:text-sm font-semibold">
-                  Selamat datang di Lab Organ Tubuh Interaktif! Mari belajar mengenali organ-organ penting di dalam tubuh kita.
-                </p>
-                <div className="mt-5 p-4 rounded-2xl bg-zinc-50/80 border border-zinc-100/50 flex items-start gap-3 text-left">
-                  <span className="text-base mt-0.5">💡</span>
-                  <p className="text-[11px] leading-relaxed text-zinc-500 font-bold">
-                    <strong>Cara belajar:</strong> Klik langsung titik pin berwarna berkilau pada tubuh karakter di sebelah kanan, atau gunakan tombol navigasi cepat di bawah ini!
+              </div>
+
+              {/* Progress Misi Dokter Cilik */}
+              <div className="p-4 bg-gradient-to-br from-indigo-50 to-blue-50/50 border border-indigo-100 rounded-2xl shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-indigo-950 uppercase tracking-wider">🏆 Misi Dokter Cilik</span>
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-[9px] font-black text-indigo-700">
+                    {visitedParts.length} / 6 Organ
+                  </span>
+                </div>
+                <div className="w-full bg-zinc-200/80 rounded-full h-2 overflow-hidden shadow-inner">
+                  <div
+                    className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(visitedParts.length / 6) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between items-center pt-1 gap-2">
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                    {Object.keys(PARTS_DATA).map((partKey) => {
+                      const isVisited = visitedParts.includes(partKey);
+                      const emoji = PARTS_DATA[partKey].emoji.substring(0, 2);
+                      return (
+                        <span
+                          key={partKey}
+                          title={PARTS_DATA[partKey].title}
+                          className={`text-sm p-1 rounded-md transition-all ${
+                            isVisited
+                              ? "bg-white border border-indigo-200 scale-105 shadow-2xs filter-none"
+                              : "bg-zinc-100/50 border border-transparent opacity-30 grayscale"
+                          }`}
+                        >
+                          {emoji}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {visitedParts.length > 0 && (
+                    <button
+                      onClick={resetExplorationProgress}
+                      className="text-[8px] font-extrabold text-red-500 hover:underline uppercase shrink-0 cursor-pointer"
+                    >
+                      Reset Misi
+                    </button>
+                  )}
+                </div>
+                {visitedParts.length === 6 && (
+                  <div className="p-2.5 rounded-xl bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-extrabold text-center animate-pulse">
+                    🎉 Luar Biasa! Kamu telah menjelajahi semua organ tubuh. Gelar Dokter Cilik Utama didapatkan! 🎓
+                  </div>
+                )}
+              </div>
+
+              {/* Riddle Quiz Card */}
+              <div className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-2xs space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-wider">🔍 Detektif Organ: Tebak Aku!</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-zinc-100 text-[8px] font-extrabold text-zinc-550">
+                    Soal {quizIndex + 1}
+                  </span>
+                </div>
+                <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 relative min-h-[50px] flex items-center">
+                  <p className="text-xs font-semibold text-zinc-700 leading-relaxed">
+                    "{QUIZ_RIDDLES[quizIndex].riddle}"
                   </p>
                 </div>
+                
+                {/* Quiz Choices */}
+                {quizAnswered === null ? (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {QUIZ_RIDDLES[quizIndex].options.map((option) => {
+                      const label = option === "paru_paru" ? "Paru" : option.toUpperCase();
+                      return (
+                        <button
+                          key={option}
+                          onClick={() => handleQuizAnswer(option)}
+                          className="py-2.5 px-1 bg-zinc-50 border border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50/50 rounded-xl text-[9px] font-extrabold text-zinc-800 active:scale-95 transition-all cursor-pointer"
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-3 animate-fadeIn">
+                    <div className={`p-3 rounded-xl border flex gap-2.5 items-start ${
+                      quizAnswered
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-950"
+                        : "bg-rose-50 border-rose-200 text-rose-950"
+                    }`}>
+                      <span className="text-2xl shrink-0">
+                        {quizAnswered ? "🎉" : "❌"}
+                      </span>
+                      <div>
+                        <h4 className="text-[10px] font-extrabold uppercase">
+                          {quizAnswered ? "Hebat, Jawabanmu Benar!" : "Aduh, Belum Tepat!"}
+                        </h4>
+                        <p className="text-[10px] font-semibold opacity-90 mt-0.5 leading-relaxed">
+                          {quizAnswered 
+                            ? `Ya! Jawabannya adalah ${PARTS_DATA[QUIZ_RIDDLES[quizIndex].answer].title}. Ayo telusuri organnya!`
+                            : `Petunjuk: ${QUIZ_RIDDLES[quizIndex].hint}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {quizAnswered && (
+                        <button
+                          onClick={() => setSelectedPart(QUIZ_RIDDLES[quizIndex].answer)}
+                          className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-extrabold active:scale-95 transition-all shadow-xs cursor-pointer text-center"
+                        >
+                          Buka Organ {PARTS_DATA[QUIZ_RIDDLES[quizIndex].answer].title.split(" ")[0]} ➔
+                        </button>
+                      )}
+                      <button
+                        onClick={nextQuiz}
+                        className="flex-1 py-2 px-3 border border-zinc-200 hover:bg-zinc-50 rounded-xl text-[10px] font-extrabold text-zinc-700 active:scale-95 transition-all cursor-pointer text-center"
+                      >
+                        {quizAnswered ? "Main Lagi 🔄" : "Coba Soal Lain ➡️"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Fakta Keren Trivia Carousel */}
+              <div className="p-4 bg-gradient-to-br from-amber-50 to-orange-50/50 border border-amber-200/70 rounded-2xl shadow-2xs space-y-3 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wider">💡 Tahukah Kamu? (Trivia)</span>
+                  <span className="text-xs">{TRIVIA_FACTS[triviaIndex].emoji}</span>
+                </div>
+                <div className="min-h-[55px] flex items-center">
+                  <p className="text-xs font-semibold text-amber-950 leading-relaxed">
+                    {TRIVIA_FACTS[triviaIndex].fact}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-amber-200/50">
+                  <div className="flex gap-1">
+                    {TRIVIA_FACTS.map((_, idx) => (
+                      <span
+                        key={idx}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          idx === triviaIndex ? "w-3 bg-amber-600" : "w-1.5 bg-amber-300"
+                        }`}
+                      ></span>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setTriviaIndex((prev) => (prev + 1) % TRIVIA_FACTS.length)}
+                    className="text-[9px] font-extrabold text-amber-800 hover:text-amber-950 flex items-center gap-0.5 cursor-pointer hover:translate-x-0.5 transition-all"
+                  >
+                    Fakta Selanjutnya ➔
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick instructions banner */}
+              <div className="p-3 bg-zinc-50 border border-zinc-150 rounded-xl flex items-start gap-2.5">
+                <span className="text-sm mt-0.5">💡</span>
+                <p className="text-[10px] leading-relaxed text-zinc-500 font-bold">
+                  <strong>Petunjuk:</strong> Klik salah satu organ pada menu cepat di bawah ini atau cari titik pin bercahaya pada gambar anak laki-laki untuk menjelajah!
+                </p>
               </div>
             </div>
 
